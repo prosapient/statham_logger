@@ -1,4 +1,4 @@
-defmodule StathamLogger.JasonEncodableStruct do
+defmodule StathamLogger.EncodableStruct do
   @moduledoc """
   Needed for tests on structs that implement the Jason.Encoder protocol.
   Defining this struct in the test module wouldn't work, since the .exs files

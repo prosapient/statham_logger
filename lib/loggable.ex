@@ -4,7 +4,7 @@ defprotocol StathamLogger.Loggable do
   """
 
   @doc """
-  Built-in implementations handle only `sensitive_keys` and `max_string_size` options.
+  Built-in implementations handle only `filter_keys` and `max_string_size` options.
   Other options can be handled by custom `StathamLogger.Loggable` implementations.
   """
   @fallback_to_any true
@@ -12,8 +12,28 @@ defprotocol StathamLogger.Loggable do
 end
 
 defimpl StathamLogger.Loggable, for: Any do
+  defmacro __deriving__(module, _struct, options) do
+    quote do
+      defimpl StathamLogger.Loggable, for: unquote(module) do
+        def sanitize(data, options) do
+          options =
+            Keyword.merge(
+              options,
+              unquote(options)
+            )
+
+          data
+          |> Map.from_struct()
+          |> StathamLogger.Loggable.sanitize(options)
+        end
+      end
+    end
+  end
+
+  @impl true
   def sanitize(%{__struct__: Ecto.Association.NotLoaded}, _), do: :not_loaded
 
+  @impl true
   def sanitize(%_struct{} = data, opts) do
     if jason_implemented?(data) do
       data
@@ -24,6 +44,7 @@ defimpl StathamLogger.Loggable, for: Any do
     end
   end
 
+  @impl true
   def sanitize(data, _), do: inspect(data)
 
   defp jason_implemented?(data) do
@@ -33,25 +54,39 @@ defimpl StathamLogger.Loggable, for: Any do
 end
 
 defimpl StathamLogger.Loggable, for: Atom do
+  @impl true
   def sanitize(data, _), do: data
 end
 
+defimpl StathamLogger.Loggable, for: PID do
+  @impl true
+  def sanitize(data, _), do: inspect(data)
+end
+
+defimpl StathamLogger.Loggable, for: Reference do
+  @impl true
+  def sanitize(data, _), do: inspect(data)
+end
+
 defimpl StathamLogger.Loggable, for: Boolean do
+  @impl true
   def sanitize(data, _), do: data
 end
 
 defimpl StathamLogger.Loggable, for: Integer do
+  @impl true
   def sanitize(data, _), do: data
 end
 
 defimpl StathamLogger.Loggable, for: Map do
+  @impl true
   def sanitize(map, opts) do
-    sensitive_keys = Keyword.get(opts, :sensitive_keys) || []
+    filter_keys = Keyword.get(opts, :filter_keys)
 
     map
     |> Map.drop([:__struct__, :__meta__])
     |> Map.new(fn {key, value} ->
-      if should_be_filtered(key, sensitive_keys) do
+      if should_be_filtered(key, filter_keys) do
         {sanitize_map_key(key), "[FILTERED]"}
       else
         {sanitize_map_key(key), StathamLogger.Loggable.sanitize(value, opts)}
@@ -62,9 +97,15 @@ defimpl StathamLogger.Loggable, for: Map do
   defp sanitize_map_key(key) when is_binary(key) or is_atom(key) or is_number(key), do: key
   defp sanitize_map_key(key), do: inspect(key)
 
-  defp should_be_filtered(field, sensitive_keys) do
-    Enum.any?(sensitive_keys, fn key -> to_string(key) == to_string(field) end)
+  defp should_be_filtered(field, {:keep, keys = [_h | _t]}) do
+    Enum.any?(keys, fn key -> to_string(key) != to_string(field) end)
   end
+
+  defp should_be_filtered(field, {:discard, keys = [_h | _t]}) do
+    Enum.any?(keys, fn key -> to_string(key) == to_string(field) end)
+  end
+
+  defp should_be_filtered(field, _), do: false
 end
 
 defimpl StathamLogger.Loggable, for: BitString do
