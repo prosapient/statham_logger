@@ -81,15 +81,20 @@ end
 defimpl StathamLogger.Loggable, for: Map do
   @impl true
   def sanitize(map, opts) do
-    filter_keys = Keyword.get(opts, :filter_keys)
+    {mode, keys} = Keyword.get(opts, :filter_keys, {nil, []})
+
+    filter_keys_option = {
+      mode,
+      Enum.map(keys, &to_string/1)
+    }
 
     map
     |> Map.drop([:__struct__, :__meta__])
-    |> Map.new(fn {key, value} ->
-      if should_be_filtered(key, filter_keys) do
-        {sanitize_map_key(key), "[FILTERED]"}
+    |> Map.new(fn {field, value} ->
+      if should_be_filtered(field, filter_keys_option) do
+        {sanitize_map_key(field), "[FILTERED]"}
       else
-        {sanitize_map_key(key), StathamLogger.Loggable.sanitize(value, opts)}
+        {sanitize_map_key(field), StathamLogger.Loggable.sanitize(value, opts)}
       end
     end)
   end
@@ -97,15 +102,18 @@ defimpl StathamLogger.Loggable, for: Map do
   defp sanitize_map_key(key) when is_binary(key) or is_atom(key) or is_number(key), do: key
   defp sanitize_map_key(key), do: inspect(key)
 
-  defp should_be_filtered(field, {:keep, keys = [_h | _t]}) do
-    Enum.any?(keys, fn key -> to_string(key) != to_string(field) end)
+  defp should_be_filtered(field, _) when not is_atom(field) and not is_binary(field), do: false
+  defp should_be_filtered(_field, {nil, _}), do: false
+
+  defp should_be_filtered(field, {:keep, keys}) do
+    field = to_string(field)
+    Enum.all?(keys, fn key -> key != field end)
   end
 
   defp should_be_filtered(field, {:discard, keys = [_h | _t]}) do
-    Enum.any?(keys, fn key -> to_string(key) == to_string(field) end)
+    field = to_string(field)
+    Enum.any?(keys, fn key -> key == field end)
   end
-
-  defp should_be_filtered(field, _), do: false
 end
 
 defimpl StathamLogger.Loggable, for: BitString do

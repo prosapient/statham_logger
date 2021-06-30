@@ -66,7 +66,7 @@ defmodule StathamLoggerTest do
 
       assert %{
                "user" => %{
-                 "name" => "[FILTERED]",
+                 "name" => "Long...",
                  "password" => "[FILTERED]",
                  "phone_number" => "123"
                }

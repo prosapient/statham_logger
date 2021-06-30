@@ -46,7 +46,7 @@ defmodule StathamLogger do
       Once the buffer is full, the backend will block until
       a confirmation is received.
 
-  ## Implementing sanitization for new types can be done in 2 ways:
+  ## Implementing sanitization for new types can be done in 3 ways:
     1. Implement `StathamLogger.Loggable` protocol. Most flexible approach.
     ```elixir
     defmodule YourStruct do
@@ -68,7 +68,7 @@ defmodule StathamLogger do
     end
     ```
 
-    3. Derive Jason.Encoder
+    3. Derive Jason.Encoder (not recommended)
     ```elixir
     defmodule YourStruct do
       @derive {Jason.Encoder, only: [:foo]}
