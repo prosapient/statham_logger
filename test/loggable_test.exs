@@ -1,7 +1,8 @@
 defmodule StathamLogger.LoggableTest do
   use ExUnit.Case, async: true
+  require Logger
 
-  alias StathamLogger.{Loggable, JasonEncodableStruct}
+  alias StathamLogger.{Loggable, EncodableStruct}
 
   defmodule SimpleStruct do
     defstruct [:name, :password, :not_loaded_assoc]
@@ -17,7 +18,7 @@ defmodule StathamLogger.LoggableTest do
       metadata = [
         long_string: String.duplicate("Very long string", 20),
         keyword_list: [password: "secret"],
-        struct_with_jason_encoder_impl: %JasonEncodableStruct{name: "A", password: "secret"},
+        struct_with_jason_encoder_impl: %EncodableStruct{name: "A", password: "secret"},
         struct_with_no_jason_encoder_impl: %SimpleStruct{
           name: "A",
           password: "secret",
@@ -28,7 +29,7 @@ defmodule StathamLogger.LoggableTest do
       assert %{
                long_string: shortened_string,
                keyword_list: %{password: "[FILTERED]"},
-               struct_with_jason_encoder_impl: %JasonEncodableStruct{
+               struct_with_jason_encoder_impl: %EncodableStruct{
                  name: "A",
                  password: "secret"
                },
@@ -37,7 +38,7 @@ defmodule StathamLogger.LoggableTest do
                  password: "[FILTERED]",
                  not_loaded_assoc: :not_loaded
                }
-             } = Loggable.sanitize(metadata, sensitive_keys: [:password], max_string_size: 50)
+             } = Loggable.sanitize(metadata, filter_keys: {:discard, [:password]}, max_string_size: 50)
 
       assert String.length(shortened_string) == 53
     end

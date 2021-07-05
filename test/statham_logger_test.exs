@@ -20,6 +20,60 @@ defmodule StathamLoggerTest do
     :ok = Logger.reset_metadata([])
   end
 
+  describe "@derive StathamLogger.Loggable" do
+    test "allows Structs to override sanitize options" do
+      Logger.configure_backend(StathamLogger,
+        metadata: :all,
+        sanitize_options: [
+          filter_keys: {:discard, [:password]},
+          max_string_size: 4
+        ]
+      )
+
+      Logger.metadata(
+        user: %StathamLogger.LoggableStructWithDiscard{
+          name: "Long Name",
+          password: "123",
+          phone_number: "123"
+        }
+      )
+
+      log =
+        fn -> Logger.debug("") end
+        |> capture_log()
+        |> Jason.decode!()
+
+      assert %{
+               "user" => %{
+                 "name" => "Long...",
+                 "password" => "123",
+                 "phone_number" => "[FILTERED]"
+               }
+             } = log
+
+      Logger.metadata(
+        user: %StathamLogger.LoggableStructWithKeep{
+          name: "Long Name",
+          password: "123",
+          phone_number: "123"
+        }
+      )
+
+      log =
+        fn -> Logger.debug("") end
+        |> capture_log()
+        |> Jason.decode!()
+
+      assert %{
+               "user" => %{
+                 "name" => "Long...",
+                 "password" => "[FILTERED]",
+                 "phone_number" => "123"
+               }
+             } = log
+    end
+  end
+
   test "logs empty binary messages" do
     Logger.configure_backend(StathamLogger, metadata: :all)
 
@@ -277,7 +331,7 @@ defmodule StathamLoggerTest do
   test "hides sensitive data" do
     Logger.configure_backend(StathamLogger,
       metadata: :all,
-      sanitize_options: [sensitive_keys: ~w(password)]
+      sanitize_options: [filter_keys: {:discard, [:password]}]
     )
 
     Logger.metadata(

@@ -17,9 +17,9 @@ defmodule StathamLogger do
 
     * `:sanitize_options` - options, passed as a second argument to
     `StathamLogger.Loggable.sanitize/2` implementations.
-    Built-in implementations use `:sensitive_keys` and `:max_string_size` options:
+    Built-in implementations use `:filter_keys` and `:max_string_size` options:
 
-      * `:sensitive_keys` - specify confidential keys, to hide corresponding values from metadata.
+      * `:filter_keys` - specify confidential keys, to hide corresponding values from metadata.
       Defaults to `[]`\
       For example, given metadata:
       ```elixir
@@ -27,7 +27,7 @@ defmodule StathamLogger do
           request: %{user_id: "id"}
       ]
       ```
-      and `sensitive_keys: [:user_id]`
+      and `filter_keys: {:discard, [:user_id]}`
       resulting JSON would be
       ```json
       {
@@ -46,26 +46,33 @@ defmodule StathamLogger do
       Once the buffer is full, the backend will block until
       a confirmation is received.
 
-  ## Implementing sanitization for new types can be done in 2 ways:
-    1. Implement `StathamLogger.Loggable` protocol.
-      This approach gives access to `sensitive_keys` and `max_string_size` opts
+  ## Implementing sanitization for new types can be done in 3 ways:
+    1. Implement `StathamLogger.Loggable` protocol. Most flexible approach.
     ```elixir
     defmodule YourStruct do
-        ...
+      ...
     end
     defimpl StathamLogger.Loggable, for: YourStruct do
-        @impl true
-        def sanitize(struct, opts) do
-            # your sanitization logic
-        end
+      @impl true
+      def sanitize(struct, opts) do
+          # your sanitization logic
+      end
     end
     ```
 
-    2. Derive Jason.Encoder
+    2. Derive StathamLogger.Loggable, optionally override options.
     ```elixir
     defmodule YourStruct do
-        @derive {Jason.Encoder, only: [:foo]}
-        ...
+      @derive {StathamLogger.Loggable, filter_keys: {:discard, [:phone_number]}}
+      struct [:phone_number, ...]
+    end
+    ```
+
+    3. Derive Jason.Encoder (not recommended)
+    ```elixir
+    defmodule YourStruct do
+      @derive {Jason.Encoder, only: [:foo]}
+      ...
     end
     ```
   """
