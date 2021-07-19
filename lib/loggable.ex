@@ -1,11 +1,11 @@
 defprotocol StathamLogger.Loggable do
   @moduledoc """
-  Implement this protocol to remove confidential values or trim Logger output.
+  Implement this protocol to customize logs sanitization.
   """
 
   @doc """
+  Sanitize term, according to given options.
   Built-in implementations handle only `sensitive_keys` and `max_string_size` options.
-  Other options can be handled by custom `StathamLogger.Loggable` implementations.
   """
   @fallback_to_any true
   def sanitize(term, opts \\ [])
