@@ -1,11 +1,29 @@
 defprotocol StathamLogger.Loggable do
   @moduledoc """
-  Implement this protocol to remove confidential values or trim Logger output.
+  Implement this protocol for structs, that require custom sanitization.
+
+  1. Implement `StathamLogger.Loggable` protocol. Most flexible approach.
+  ```elixir
+  defimpl StathamLogger.Loggable, for: YourStruct do
+    @impl true
+    def sanitize(struct, opts) do
+        # your sanitization logic
+    end
+  end
+  ```
+
+  2. Derive StathamLogger.Loggable, possibly overriding options.
+  ```elixir
+  defmodule YourStruct do
+    @derive {StathamLogger.Loggable, filter_keys: {:discard, [:phone_number]}}
+    struct [:phone_number, ...]
+  end
+  ```
   """
 
   @doc """
-  Built-in implementations handle only `filter_keys` and `max_string_size` options.
-  Other options can be handled by custom `StathamLogger.Loggable` implementations.
+  Sanitize term, according to given options.
+  Built-in implementations accept only `sensitive_keys` and `max_string_size` options.
   """
   @fallback_to_any true
   def sanitize(term, opts \\ [])

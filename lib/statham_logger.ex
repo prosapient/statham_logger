@@ -45,36 +45,6 @@ defmodule StathamLogger do
       for a confirmation from the IO device (default: 32).
       Once the buffer is full, the backend will block until
       a confirmation is received.
-
-  ## Implementing sanitization for new types can be done in 3 ways:
-    1. Implement `StathamLogger.Loggable` protocol. Most flexible approach.
-    ```elixir
-    defmodule YourStruct do
-      ...
-    end
-    defimpl StathamLogger.Loggable, for: YourStruct do
-      @impl true
-      def sanitize(struct, opts) do
-          # your sanitization logic
-      end
-    end
-    ```
-
-    2. Derive StathamLogger.Loggable, optionally override options.
-    ```elixir
-    defmodule YourStruct do
-      @derive {StathamLogger.Loggable, filter_keys: {:discard, [:phone_number]}}
-      struct [:phone_number, ...]
-    end
-    ```
-
-    3. Derive Jason.Encoder (not recommended)
-    ```elixir
-    defmodule YourStruct do
-      @derive {Jason.Encoder, only: [:foo]}
-      ...
-    end
-    ```
   """
 
   @behaviour :gen_event
