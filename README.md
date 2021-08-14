@@ -1,7 +1,7 @@
 # StathamLogger
 
-A backend for the Elixir [https://hexdocs.pm/logger/Logger.html](Logger) that:
-- transforms logged [https://hexdocs.pm/logger/1.12/Logger.html#module-metadata](metadata), by hiding sensitive values and trimming long strings
+A backend for the Elixir [Logger](https://hexdocs.pm/logger/Logger.html) that:
+- transforms logged [metadata](https://hexdocs.pm/logger/1.12/Logger.html#module-metadata), by hiding sensitive values and trimming long strings
 - outputs JSON string, structured according to [Datadog attributest list](https://docs.datadoghq.com/logs/processing/attributes_naming_convention/#default-standard-attribute-list)
 
 ## Installation
@@ -19,23 +19,26 @@ end
 
 ## Configuration
 
-1. Configure StathamLogger. In this example `password` and `just_another_sensitive_key` will have corresponding value set to `[FILTERED]:
-
-```elixir
-config :logger, StathamLogger,
-  metadata: :all,
-  sanitize_options: [
-    filter_keys: {:discard, ~w(password just_another_sensitive_key)},
-    max_string_size: 100
-  ]
-```
-
-1. Use `StathamLogger` Logger backend, instead of default [https://github.com/elixir-lang/elixir/blob/master/lib/logger/lib/logger/backends/console.ex](`Console`) backconfig.exs`:
+1. Use `StathamLogger` Logger backend, instead of default [Console](https://github.com/elixir-lang/elixir/blob/master/lib/logger/lib/logger/backends/console.ex) backend in `config.exs`:
 
 ```elixir
 config :logger,
   backends: [StathamLogger]
 ```
+
+2. Configure `StathamLogger`:
+
+```elixir
+config :logger, StathamLogger,
+  metadata: :all,
+  sanitize_options: [
+    filter_keys: {:discard, ~w(password other_sensitive_key)},
+    max_string_size: 100
+  ]
+```
+In this example:
+- `password` and `other_sensitive_key` will have values replaced with `"[FILTERED]"`
+- all string values will be truncated to 100 characters
 
 ## Extending functionality
 
