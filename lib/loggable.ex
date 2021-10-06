@@ -1,18 +1,18 @@
 defprotocol StathamLogger.Loggable do
   @moduledoc """
-  Implement this protocol for structs, that require custom sanitization.
+  `defimpl` or `derive` this protocol for structs that require custom sanitization.
 
-  1. Implement `StathamLogger.Loggable` protocol. Most flexible approach.
+  A. Implement `StathamLogger.Loggable` protocol. Most flexible approach.
   ```elixir
   defimpl StathamLogger.Loggable, for: YourStruct do
     @impl true
     def sanitize(struct, opts) do
-        # your sanitization logic
+      # your sanitization logic
     end
   end
   ```
 
-  2. Derive StathamLogger.Loggable, possibly overriding options.
+  B. Derive StathamLogger.Loggable, possibly overriding options.
   ```elixir
   defmodule YourStruct do
     @derive {StathamLogger.Loggable, filter_keys: {:discard, [:phone_number]}}
