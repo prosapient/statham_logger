@@ -6,22 +6,10 @@ A backend for the Elixir [Logger](https://hexdocs.pm/logger/Logger.html) that:
 
 ## Installation
 
-If not available on Hex:
 ```elixir
 def deps do
   [
     {:statham_logger, github: "prosapient/statham_logger"}
-  ]
-end
-```
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `statham_logger` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:statham_logger, "~> 0.1"}
   ]
 end
 ```
@@ -45,9 +33,9 @@ config :logger, StathamLogger,
     max_string_size: 100
   ]
 ```
-In this example:
-- `password` and `other_sensitive_key` will have values replaced with `"[FILTERED]"`
-- all string values will be truncated to 100 characters
+Given this configuration, logged medatada will be sanitized:
+- `password` and `other_sensitive_key` values replaced with `"[FILTERED]"`
+- string values truncated to 100 characters
 
 ## Dynamic configuration
 ```elixir
@@ -63,26 +51,26 @@ iex> Logger.metadata(metadata_field_1: "metadata_value_1")
 iex> Logger.debug("hello")
 
 # Output
-iex> {"file":"/some_file.ex","function":"say_hello/0","line":67,"logger":{"thread_name":"#PID<0.222.0>","method_name":"HelloModule.say_hello/0"},"message":"hello","metadata_field_1":"metadata_value_1","mfa":["HelloModule","say_hello",0],"module":"HelloModule","pid":"#PID<0.222.0>","syslog":{"hostname":"mb","severity":"debug","timestamp":"2021-10-07T10:20:17.902Z"}}
+{"file":"/some_file.ex","function":"say_hello/0","line":67,"logger":{"thread_name":"#PID<0.222.0>","method_name":"HelloModule.say_hello/0"},"message":"hello","metadata_field_1":"metadata_value_1","mfa":["HelloModule","say_hello",0],"module":"HelloModule","pid":"#PID<0.222.0>","syslog":{"hostname":"mb","severity":"debug","timestamp":"2021-10-07T10:20:17.902Z"}}
 ```
 
-## Overwrite log level per invocation using options_groups
+## Overwrite log level per invocation using StathamLogger groups
 
-1. Configure options groups
+1. Configure groups
 ```elixir
 config :logger, level: :info
 
 config :logger, StathamLogger,
-  options_groups: %{
+  groups: %{
     detailed_logs: [
       level: :debug
     ]
   }
 ```
 
-2. Use options group
+2. Use group
 ```elixir
-Logger.metadata(statham_logger_options_group: :detailed_logs)
+Logger.metadata(statham_logger_group: :detailed_logs)
 
 # message is logged, because :detailed_logs level (:debug) overwrites :logger level (:info)
 Logger.debug("hello")

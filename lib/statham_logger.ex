@@ -86,14 +86,14 @@ defmodule StathamLogger do
     %{level: log_level, ref: ref, buffer_size: buffer_size, max_buffer: max_buffer} = state
 
     log_level =
-      case md[:statham_logger_options_group] do
+      case md[:statham_logger_group] do
         nil ->
           log_level
 
         group ->
           :logger
           |> Application.get_env(StathamLogger)
-          |> Keyword.get(:options_groups, %{})
+          |> Keyword.get(:groups, %{})
           |> Map.get(group, [])
           |> Keyword.get(:level, log_level)
       end

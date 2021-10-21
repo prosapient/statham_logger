@@ -277,11 +277,11 @@ defmodule StathamLoggerTest do
            end) == ""
   end
 
-  test "may overwrite configured level using :statham_logger_options_group" do
+  test "may overwrite configured level using :statham_logger_group" do
     Logger.configure_backend(
       StathamLogger,
       level: :info,
-      options_groups: %{
+      groups: %{
         detailed_logs: [
           level: :debug
         ]
@@ -293,16 +293,16 @@ defmodule StathamLoggerTest do
            end) == ""
 
     assert capture_log(fn ->
-             Logger.metadata(statham_logger_options_group: :detailed_logs)
+             Logger.metadata(statham_logger_group: :detailed_logs)
              Logger.debug("hello")
            end) =~ "hello"
   end
 
-  test "ignore invalid :statham_logger_options_group" do
+  test "ignore invalid :statham_logger_group" do
     Logger.configure_backend(StathamLogger, level: :info)
 
     assert capture_log(fn ->
-             Logger.metadata(statham_logger_options_group: :invalid_options_grop)
+             Logger.metadata(statham_logger_group: :invalid_group)
              Logger.debug("hello")
            end) =~ ""
   end
