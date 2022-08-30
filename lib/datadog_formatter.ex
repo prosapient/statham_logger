@@ -58,8 +58,8 @@ defmodule StathamLogger.DatadogFormatter do
   defp format_initial_call({module, function, arity}), do: format_function(module, function, arity)
 
   defp format_function(nil, function), do: function
-  defp format_function(module, function), do: "#{module}.#{function}"
-  defp format_function(module, function, arity), do: "#{module}.#{function}/#{arity}"
+  defp format_function(module, function), do: "#{inspect(module)}.#{function}"
+  defp format_function(module, function, arity), do: "#{inspect(module)}.#{function}/#{arity}"
 
   def maybe_put(map, _key, nil), do: map
   def maybe_put(map, key, value), do: Map.put(map, key, value)
