@@ -27,14 +27,9 @@ defmodule StathamLogger.DatadogFormatter do
             timestamp: format_timestamp(timestamp)
           )
       },
-      format_metadata(sanitized_metadata, raw_metadata)
+      skip_metadata_keys(sanitized_metadata)
     )
-  end
-
-  defp format_metadata(metadata, raw_metadata) do
-    metadata
-    |> skip_metadata_keys()
-    |> maybe_put(:error, format_process_crash(raw_metadata))
+    |> maybe_put(:error, format_error(raw_metadata))
   end
 
   defp skip_metadata_keys(metadata) do
@@ -64,15 +59,37 @@ defmodule StathamLogger.DatadogFormatter do
   def maybe_put(map, _key, nil), do: map
   def maybe_put(map, key, value), do: Map.put(map, key, value)
 
-  def format_process_crash(metadata) do
-    if crash_reason = Map.get(metadata, :crash_reason) do
-      initial_call = Map.get(metadata, :initial_call)
+  defp format_error(%{crash_reason: {error, stacktrace}} = metadata) when is_list(stacktrace) do
+    Map.merge(
+      normalize_crash_reason(error),
+      %{
+        stack: stacktrace,
+        initial_call: format_initial_call(metadata[:initial_call])
+      }
+    )
+  end
 
-      json_map(
-        initial_call: format_initial_call(initial_call),
-        reason: format_crash_reason(crash_reason)
-      )
-    end
+  defp format_error(_metadata), do: nil
+
+  defp normalize_crash_reason(%{__exception__: true, __struct__: struct} = exception) do
+    %{
+      kind: inspect(struct),
+      message: Exception.format_banner(:error, exception)
+    }
+  end
+
+  defp normalize_crash_reason({:no_catch, reason}) do
+    %{
+      kind: :throw,
+      message: Exception.format_banner(:throw, reason, [])
+    }
+  end
+
+  defp normalize_crash_reason(error) do
+    %{
+      kind: :exit,
+      message: Exception.format_banner(:exit, error)
+    }
   end
 
   defp format_timestamp({date, time}) do
@@ -94,20 +111,4 @@ defmodule StathamLogger.DatadogFormatter do
   defp pad3(int) when int < 10, do: [?0, ?0, Integer.to_string(int)]
   defp pad3(int) when int < 100, do: [?0, Integer.to_string(int)]
   defp pad3(int), do: Integer.to_string(int)
-
-  defp format_crash_reason({:throw, reason}) do
-    Exception.format(:throw, reason)
-  end
-
-  defp format_crash_reason({:exit, reason}) do
-    Exception.format(:exit, reason)
-  end
-
-  defp format_crash_reason({%{} = exception, stacktrace}) do
-    Exception.format(:error, exception, stacktrace)
-  end
-
-  defp format_crash_reason(other) do
-    inspect(other)
-  end
 end

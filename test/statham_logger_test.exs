@@ -260,7 +260,7 @@ defmodule StathamLoggerTest do
       |> capture_log()
       |> Jason.decode!()
 
-    function = "Elixir.#{inspect(mod)}.#{name}/#{arity}"
+    function = "#{inspect(mod)}.#{name}/#{arity}"
 
     assert %{
              "logger" => %{
@@ -301,10 +301,15 @@ defmodule StathamLoggerTest do
       capture_log(fn -> Logger.debug("hello") end)
       |> Jason.decode!()
 
-    assert is_nil(log["error"]["initial_call"])
-    assert log["error"]["reason"] == "** (RuntimeError) oops"
+    assert %{
+             "kind" => "RuntimeError",
+             "message" => "** (RuntimeError) oops",
+             "stack" => [],
+             "initial_call" => nil
+           } = log["error"]
   end
 
+  @tag :wip
   test "logs erlang style crash reasons" do
     Logger.configure_backend(StathamLogger, metadata: [:crash_reason])
     Logger.metadata(crash_reason: {:socket_closed_unexpectedly, []})
@@ -313,8 +318,12 @@ defmodule StathamLoggerTest do
       capture_log(fn -> Logger.debug("hello") end)
       |> Jason.decode!()
 
-    assert is_nil(log["error"]["initial_call"])
-    assert log["error"]["reason"] == "{:socket_closed_unexpectedly, []}"
+    assert %{
+             "kind" => "exit",
+             "message" => "** (exit) :socket_closed_unexpectedly",
+             "stack" => [],
+             "initial_call" => nil
+           } = log["error"]
   end
 
   test "logs initial call when present" do
@@ -325,7 +334,7 @@ defmodule StathamLoggerTest do
       capture_log(fn -> Logger.debug("hello") end)
       |> Jason.decode!()
 
-    assert log["error"]["initial_call"] == "Elixir.Foo.bar/3"
+    assert log["error"]["initial_call"] == "Foo.bar/3"
   end
 
   test "hides sensitive data" do
