@@ -27,14 +27,9 @@ defmodule StathamLogger.DatadogFormatter do
             timestamp: format_timestamp(timestamp)
           )
       },
-      format_metadata(sanitized_metadata, raw_metadata)
+      skip_metadata_keys(sanitized_metadata)
     )
     |> maybe_put(:error, format_error(raw_metadata))
-  end
-
-  defp format_metadata(metadata, raw_metadata) do
-    metadata
-    |> skip_metadata_keys()
   end
 
   defp skip_metadata_keys(metadata) do
@@ -64,27 +59,38 @@ defmodule StathamLogger.DatadogFormatter do
   def maybe_put(map, _key, nil), do: map
   def maybe_put(map, key, value), do: Map.put(map, key, value)
 
-  def format_error(%{crash_reason: crash_reason} = metadata) do
-    with {%StathamLogger.CrashError{
-            kind: kind,
-            message: message
-          }, stacktrace} <- normalize_crash_reason(crash_reason) do
-      json_map(
-        initial_call: format_initial_call(metadata[:initial_call]),
-        kind: kind,
-        message: message,
-        stack: stacktrace
-      )
-    end
+  defp format_error(%{crash_reason: {error, stacktrace}} = metadata) when is_list(stacktrace) do
+    Map.merge(
+      normalize_crash_reason(error),
+      %{
+        stack: stacktrace,
+        initial_call: format_initial_call(metadata[:initial_call])
+      }
+    )
   end
 
-  def format_error(_metadata), do: nil
+  defp format_error(_metadata), do: nil
 
-  defp normalize_crash_reason({error, stacktrace}) when is_list(stacktrace) do
-    {StathamLogger.CrashError.exception(error), stacktrace}
+  defp normalize_crash_reason(%{__exception__: true, __struct__: struct} = exception) do
+    %{
+      kind: inspect(struct),
+      message: Exception.format_banner(:error, exception)
+    }
   end
 
-  defp normalize_crash_reason(_), do: nil
+  defp normalize_crash_reason({:no_catch, reason}) do
+    %{
+      kind: :throw,
+      message: Exception.format_banner(:throw, reason, [])
+    }
+  end
+
+  defp normalize_crash_reason(error) do
+    %{
+      kind: :exit,
+      message: Exception.format_banner(:exit, error)
+    }
+  end
 
   defp format_timestamp({date, time}) do
     [format_date(date), ?T, format_time(time), ?Z]

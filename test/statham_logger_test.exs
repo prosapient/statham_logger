@@ -309,6 +309,7 @@ defmodule StathamLoggerTest do
            } = log["error"]
   end
 
+  @tag :wip
   test "logs erlang style crash reasons" do
     Logger.configure_backend(StathamLogger, metadata: [:crash_reason])
     Logger.metadata(crash_reason: {:socket_closed_unexpectedly, []})
