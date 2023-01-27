@@ -293,48 +293,85 @@ defmodule StathamLoggerTest do
     assert %{"syslog" => %{"severity" => "warn"}} = log
   end
 
-  test "logs crash reason when present" do
-    Logger.configure_backend(StathamLogger, metadata: [:crash_reason])
-    Logger.metadata(crash_reason: {%RuntimeError{message: "oops"}, []})
+  describe "error tracking" do
+    test "log[\"error\"] is correct for elixir style crash reason" do
+      Logger.configure_backend(StathamLogger, metadata: [:all])
 
-    log =
-      capture_log(fn -> Logger.debug("hello") end)
-      |> Jason.decode!()
+      Logger.metadata(
+        crash_reason: {
+          %RuntimeError{message: "oops"},
+          []
+        }
+      )
 
-    assert %{
-             "kind" => "RuntimeError",
-             "message" => "** (RuntimeError) oops",
-             "stack" => [],
-             "initial_call" => nil
-           } = log["error"]
-  end
+      log =
+        capture_log(fn -> Logger.debug("hello") end)
+        |> Jason.decode!()
 
-  @tag :wip
-  test "logs erlang style crash reasons" do
-    Logger.configure_backend(StathamLogger, metadata: [:crash_reason])
-    Logger.metadata(crash_reason: {:socket_closed_unexpectedly, []})
+      assert %{
+               "kind" => "RuntimeError",
+               "message" => "** (RuntimeError) oops",
+               "stack" => "\n"
+             } = log["error"]
+    end
 
-    log =
-      capture_log(fn -> Logger.debug("hello") end)
-      |> Jason.decode!()
+    test "log[\"error\"] is correct for erlang style exit crash reason" do
+      Logger.configure_backend(StathamLogger, metadata: [:all])
+      Logger.metadata(crash_reason: {:socket_closed_unexpectedly, []})
 
-    assert %{
-             "kind" => "exit",
-             "message" => "** (exit) :socket_closed_unexpectedly",
-             "stack" => [],
-             "initial_call" => nil
-           } = log["error"]
-  end
+      log =
+        capture_log(fn -> Logger.debug("hello") end)
+        |> Jason.decode!()
 
-  test "logs initial call when present" do
-    Logger.configure_backend(StathamLogger, metadata: [:initial_call])
-    Logger.metadata(crash_reason: {%RuntimeError{message: "oops"}, []}, initial_call: {Foo, :bar, 3})
+      assert %{
+               "kind" => "exit",
+               "message" => "** (exit) :socket_closed_unexpectedly",
+               "stack" => "\n"
+             } = log["error"]
+    end
 
-    log =
-      capture_log(fn -> Logger.debug("hello") end)
-      |> Jason.decode!()
+    test "log[\"error\"] is correct for erlang style throw crash reason)" do
+      Logger.configure_backend(StathamLogger, metadata: [:all])
+      Logger.metadata(crash_reason: {{:no_catch, "oops"}, []})
 
-    assert log["error"]["initial_call"] == "Foo.bar/3"
+      log =
+        capture_log(fn -> Logger.debug("hello") end)
+        |> Jason.decode!()
+
+      assert %{
+               "kind" => "throw",
+               "message" => "** (throw) \"oops\"",
+               "stack" => "\n"
+             } = log["error"]
+    end
+
+    test "log[\"error\"][\"stack\"] is correct" do
+      Logger.configure_backend(StathamLogger, metadata: [:all])
+
+      try do
+        raise "error"
+      rescue
+        _ ->
+          Logger.metadata(
+            crash_reason: {
+              %RuntimeError{message: "oops"},
+              __STACKTRACE__
+            }
+          )
+
+          log =
+            capture_log(fn -> Logger.debug("hello") end)
+            |> Jason.decode!()
+
+          expected_error_stack = Exception.format_stacktrace(__STACKTRACE__)
+
+          assert %{
+                   "kind" => "RuntimeError",
+                   "message" => "** (RuntimeError) oops",
+                   "stack" => ^expected_error_stack
+                 } = log["error"]
+      end
+    end
   end
 
   test "hides sensitive data" do

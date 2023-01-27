@@ -49,9 +49,6 @@ defmodule StathamLogger.DatadogFormatter do
     to_string(hostname)
   end
 
-  defp format_initial_call(nil), do: nil
-  defp format_initial_call({module, function, arity}), do: format_function(module, function, arity)
-
   defp format_function(nil, function), do: function
   defp format_function(module, function), do: "#{inspect(module)}.#{function}"
   defp format_function(module, function, arity), do: "#{inspect(module)}.#{function}/#{arity}"
@@ -61,35 +58,38 @@ defmodule StathamLogger.DatadogFormatter do
 
   defp format_error(%{crash_reason: {error, stacktrace}} = metadata) when is_list(stacktrace) do
     Map.merge(
-      normalize_crash_reason(error),
+      format_crash_reason_error(error),
       %{
-        stack: stacktrace,
-        initial_call: format_initial_call(metadata[:initial_call])
+        stack: format_crash_reason_stacktrace(stacktrace)
       }
     )
   end
 
   defp format_error(_metadata), do: nil
 
-  defp normalize_crash_reason(%{__exception__: true, __struct__: struct} = exception) do
+  defp format_crash_reason_error(%{__exception__: true, __struct__: struct} = exception) do
     %{
       kind: inspect(struct),
       message: Exception.format_banner(:error, exception)
     }
   end
 
-  defp normalize_crash_reason({:no_catch, reason}) do
+  defp format_crash_reason_error({:no_catch, reason}) do
     %{
       kind: :throw,
       message: Exception.format_banner(:throw, reason, [])
     }
   end
 
-  defp normalize_crash_reason(error) do
+  defp format_crash_reason_error(error) do
     %{
       kind: :exit,
       message: Exception.format_banner(:exit, error)
     }
+  end
+
+  defp format_crash_reason_stacktrace(stacktrace) do
+    Exception.format_stacktrace(stacktrace)
   end
 
   defp format_timestamp({date, time}) do
