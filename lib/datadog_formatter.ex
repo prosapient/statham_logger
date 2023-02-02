@@ -30,6 +30,7 @@ defmodule StathamLogger.DatadogFormatter do
       skip_metadata_keys(sanitized_metadata)
     )
     |> maybe_put(:error, format_error(raw_metadata))
+    |> maybe_put(:usr, format_user(raw_metadata))
   end
 
   defp skip_metadata_keys(metadata) do
@@ -91,6 +92,16 @@ defmodule StathamLogger.DatadogFormatter do
   defp format_crash_reason_stacktrace(stacktrace) do
     Exception.format_stacktrace(stacktrace)
   end
+
+  defp format_user(%{logger_context: %{user: user}}) when is_map(user) do
+    %{
+      id: user[:id],
+      name: user[:name],
+      email: user[:email]
+    }
+  end
+
+  defp format_user(_), do: nil
 
   defp format_timestamp({date, time}) do
     [format_date(date), ?T, format_time(time), ?Z]

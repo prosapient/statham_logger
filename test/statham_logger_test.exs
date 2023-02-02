@@ -293,7 +293,36 @@ defmodule StathamLoggerTest do
     assert %{"syslog" => %{"severity" => "warn"}} = log
   end
 
-  describe "error tracking" do
+  describe "handle logger_context in metadata" do
+    test "log usr attribute" do
+      Logger.configure_backend(StathamLogger, metadata: :all)
+
+      debug_fn = fn ->
+        Logger.debug("hello",
+          logger_context: %{
+            user: %{
+              id: "user_id",
+              name: "user_name",
+              email: "user_email"
+            }
+          }
+        )
+      end
+
+      assert %{
+               "usr" => %{
+                 "id" => "user_id",
+                 "name" => "user_name",
+                 "email" => "user_email"
+               }
+             } =
+               debug_fn
+               |> capture_log()
+               |> Jason.decode!()
+    end
+  end
+
+  describe "log error attribute" do
     test "log[\"error\"] is correct for elixir style crash reason" do
       Logger.configure_backend(StathamLogger, metadata: [:all])
 
