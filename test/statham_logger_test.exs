@@ -320,6 +320,31 @@ defmodule StathamLoggerTest do
                |> capture_log()
                |> Jason.decode!()
     end
+
+    test "log http attribute" do
+      Logger.configure_backend(StathamLogger, metadata: :all)
+
+      debug_fn = fn ->
+        Logger.debug("hello",
+          logger_context: %{
+            http: %{
+              url: "http://localhost/path",
+              method: "GET"
+            }
+          }
+        )
+      end
+
+      assert %{
+               "http" => %{
+                 "url" => "http://localhost/path",
+                 "method" => "GET"
+               }
+             } =
+               debug_fn
+               |> capture_log()
+               |> Jason.decode!()
+    end
   end
 
   describe "log error attribute" do
