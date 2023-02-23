@@ -45,7 +45,44 @@ defmodule StathamLogger do
       for a confirmation from the IO device (default: 32).
       Once the buffer is full, the backend will block until
       a confirmation is received.
+
+    * `exception_capture_plug_used?` - if true, StathamLogger ignores the logged Endpoint error,
+      received by StathamLogger backend, relying instead on error logged by StathamLogger.ExceptionCapturePlug.
+      `true` by default. Has to be true to avoid duplicate errors sent to Datadog.
+
+  ## Implementing sanitization for new types can be done in 3 ways:
+    1. Implement `StathamLogger.Loggable` protocol. Most flexible approach.
+    ```elixir
+    defmodule YourStruct do
+      ...
+    end
+    defimpl StathamLogger.Loggable, for: YourStruct do
+      @impl true
+      def sanitize(struct, opts) do
+          # your sanitization logic
+      end
+    end
+    ```
+
+    2. Derive StathamLogger.Loggable, optionally override options.
+    ```elixir
+    defmodule YourStruct do
+      @derive {StathamLogger.Loggable, filter_keys: {:discard, [:phone_number]}}
+      struct [:phone_number, ...]
+    end
+    ```
+
+    3. Derive Jason.Encoder (not recommended)
+    ```elixir
+    defmodule YourStruct do
+      @derive {Jason.Encoder, only: [:foo]}
+      ...
+    end
+    ```
   """
+
+  alias StathamLogger.DatadogFormatter
+  alias StathamLogger.Sanitizer
 
   @behaviour :gen_event
 
@@ -54,14 +91,15 @@ defmodule StathamLogger do
             device: nil,
             level: nil,
             max_buffer: nil,
-            metadata: nil,
+            metadata: :all,
             sanitize_options: [],
             output: nil,
-            ref: nil
+            ref: nil,
+            exception_capture_plug_used?: true
 
   @impl true
   def init(__MODULE__) do
-    config = Application.get_env(:logger, StathamLogger, [])
+    config = config()
     device = Keyword.get(config, :device, :user)
 
     if Process.whereis(device) do
@@ -72,7 +110,7 @@ defmodule StathamLogger do
   end
 
   def init({__MODULE__, opts}) when is_list(opts) do
-    config = configure_merge(Application.get_env(:logger, StathamLogger, []), opts)
+    config = configure_merge(config(), opts)
     {:ok, init(config, %__MODULE__{})}
   end
 
@@ -87,6 +125,9 @@ defmodule StathamLogger do
 
     cond do
       not meet_level?(level, log_level) ->
+        {:ok, state}
+
+      filtered_by_exception_capture_plug?(md, state) ->
         {:ok, state}
 
       is_nil(ref) ->
@@ -141,8 +182,14 @@ defmodule StathamLogger do
     Logger.compare_levels(lvl, min) != :lt
   end
 
+  defp filtered_by_exception_capture_plug?(md, %{exception_capture_plug_used?: exception_capture_plug_used?}) do
+    exception_capture_plug_used? &&
+      Keyword.has_key?(md, :conn) &&
+      Keyword.has_key?(md, :crash_reason)
+  end
+
   defp configure(options, state) do
-    config = configure_merge(Application.get_env(:logger, StathamLogger, []), options)
+    config = configure_merge(config(), options)
     Application.put_env(:logger, StathamLogger, config)
     init(config, state)
   end
@@ -152,10 +199,11 @@ defmodule StathamLogger do
     device = Keyword.get(config, :device, :user)
     max_buffer = Keyword.get(config, :max_buffer, 32)
     sanitize_options = Keyword.get(config, :sanitize_options, [])
+    exception_capture_plug_used? = Keyword.get(config, :exception_capture_plug_used?, true)
 
     metadata =
       config
-      |> Keyword.get(:metadata, [])
+      |> Keyword.get(:metadata, :all)
       |> configure_metadata()
 
     %{
@@ -164,7 +212,8 @@ defmodule StathamLogger do
         level: level,
         device: device,
         max_buffer: max_buffer,
-        sanitize_options: sanitize_options
+        sanitize_options: sanitize_options,
+        exception_capture_plug_used?: exception_capture_plug_used?
     }
   end
 
@@ -217,29 +266,18 @@ defmodule StathamLogger do
     end
   end
 
-  defp format_event(level, message, timestamp, metadata, state) do
-    %{metadata: metadata_keys, sanitize_options: sanitize_options} = state
-
-    raw_metadata =
-      metadata
-      |> Map.new()
-
-    sanitized_metadata =
-      raw_metadata
-      |> take_metadata(metadata_keys)
-      |> StathamLogger.Loggable.sanitize(sanitize_options)
-
-    event = StathamLogger.DatadogFormatter.format_event(level, message, timestamp, raw_metadata, sanitized_metadata)
+  defp format_event(
+         level,
+         message,
+         timestamp,
+         metadata,
+         %{metadata: filter_keys, sanitize_options: sanitize_options} = _state
+       ) do
+    raw_metadata = Map.new(metadata)
+    sanitized_metadata = Sanitizer.sanitize_metadata(raw_metadata, filter_keys, sanitize_options)
+    event = DatadogFormatter.format_event(level, message, timestamp, sanitized_metadata, raw_metadata)
 
     [Jason.encode_to_iodata!(event) | "\n"]
-  end
-
-  defp take_metadata(metadata, :all) do
-    metadata
-  end
-
-  defp take_metadata(metadata, keys) do
-    Map.take(metadata, keys)
   end
 
   defp log_buffer(%{buffer_size: 0, buffer: []} = state), do: state
@@ -292,5 +330,9 @@ defmodule StathamLogger do
     state
     |> await_io()
     |> flush()
+  end
+
+  defp config do
+    Application.get_env(:logger, StathamLogger, [])
   end
 end

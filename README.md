@@ -28,7 +28,16 @@ config :logger,
   backends: [StathamLogger]
 ```
 
-2. Configure `StathamLogger`:
+2. Add `StathamLogger.ExceptionCapturePlug` to `endpoint.ex` before `use Phoenix.Endpoint`.
+```elixir
+defmodule MyApp.Endpoint
+  use StathamLogger.ExceptionCapturePlug
+  use Phoenix.Endpoint, otp_app: :my_app
+  # ...
+end
+```
+
+3. Configure `StathamLogger`:
 
 ```elixir
 config :logger, StathamLogger,
@@ -41,6 +50,10 @@ config :logger, StathamLogger,
 In this example:
 - `password` and `other_sensitive_key` will have values replaced with `"[FILTERED]"`
 - all string values will be truncated to 100 characters
+
+4. Store things like current user (`logger_context.user`) and request details (`logger_context.http`) in Logger metadata under `logger_context` key.
+`StathamLogger` looks in `logger_context` to set standard attributes values (see `StathamLogger.DatadogFormatter` for details).
+
 
 ## Extending functionality
 
@@ -98,15 +111,11 @@ logs:
     source: custom-source
 ```
 3. Start your app that has `statham_logger` dependency, and is using StathamLogger Logger backend with `mix phx.server > <CUSTOM_PATH>.log`
-4. Observe logs received by Datadog Agent: `datadog-agent stream-logs`
-5. Observe logs received by [Datadog](https://app.datadoghq.com/logs/livetail)
-
-## Contributing
-To debug `statham_logger` integration issues:
-- In your app, change `mix.exs` to use local `statham_logger`: `{:statham_logger, path: "../statham_logger"}`
-- Make any changes in `statham_logger`
-- `mix deps.clean statham_logger`
-- `mix compile`
+4. Start Datadog Agent `datadog-agent start`
+5. Generate some Logs in your app
+6. Observe logs received by Datadog Agent: `datadog-agent stream-logs`
+7. Observe logs received by [Datadog](https://app.datadoghq.com/logs/livetail)
+8. To see all logs, filter Live Tail by host, for example (https://app.datadoghq.com/logs/livetail?query=host%3Amb)
 
 ## Documentation
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
