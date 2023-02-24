@@ -34,14 +34,14 @@ defmodule StathamLogger.DatadogFormatter do
     |> maybe_put(:http, format_http(raw_metadata))
   end
 
-  def format_captured_exception(sanitized_metadata, raw_metadata, message) do
+  def format_captured_exception(message, timestamp, sanitized_metadata, raw_metadata) do
     Map.merge(
       %{
         message: IO.chardata_to_string(message),
         syslog: %{
           hostname: node_hostname(),
-          severity: :error,
-          timestamp: format_timestamp(:calendar.local_time())
+          severity: "error",
+          timestamp: format_timestamp(timestamp)
         }
       },
       skip_metadata_keys(sanitized_metadata)
@@ -125,10 +125,6 @@ defmodule StathamLogger.DatadogFormatter do
   defp format_timestamp({date, time}) do
     [format_date(date), ?T, format_time(time), ?Z]
     |> IO.iodata_to_binary()
-  end
-
-  defp format_time({hh, mi, ss}) do
-    format_time({hh, mi, ss, 0})
   end
 
   defp format_time({hh, mi, ss, ms}) do

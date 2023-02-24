@@ -64,9 +64,20 @@ defmodule StathamLogger.ExceptionCapturePlug do
 
         message = exception_message(conn, self(), __MODULE__, reason, stacktrace)
 
-        raw_metadata
-        |> Sanitizer.sanitize_metadata()
-        |> DatadogFormatter.format_captured_exception(raw_metadata, message)
+        {_, _, microseconds} = system_time = :erlang.timestamp()
+        {date, {hh, mm, ss}} = :calendar.now_to_local_time(system_time)
+
+        timestamp = {
+          date,
+          {hh, mm, ss, div(microseconds, 1_000)}
+        }
+
+        sanitized_metadata =
+          raw_metadata
+          |> Sanitizer.sanitize_metadata()
+
+        message
+        |> DatadogFormatter.format_captured_exception(timestamp, sanitized_metadata, raw_metadata)
         |> Jason.encode_to_iodata!()
         |> IO.puts()
       end
