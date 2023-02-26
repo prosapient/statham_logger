@@ -44,6 +44,9 @@ defmodule StathamLogger.MixProject do
   defp deps do
     [
       {:jason, "~> 1.2"},
+      {:plug, "~> 1.14", only: :test},
+      {:phoenix, "~> 1.7", only: :test},
+      {:phoenix_html, "~> 3.0", only: :test},
       {:ex_doc, "~> 0.24", only: :dev}
     ]
   end

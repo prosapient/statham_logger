@@ -42,7 +42,10 @@ defmodule StathamLogger.ExceptionCapturePlug do
             Plug.Conn.WrapperError.reraise(conn, e.kind, e.reason, e.stack)
 
           e ->
-            write_exception_to_stdout(conn, e.reason, __STACKTRACE__)
+            if Plug.Exception.status(e) >= 500 do
+              write_exception_to_stdout(conn, e, __STACKTRACE__)
+            end
+
             :erlang.raise(:error, e, __STACKTRACE__)
         catch
           kind, reason ->
@@ -51,22 +54,33 @@ defmodule StathamLogger.ExceptionCapturePlug do
         end
       end
 
-      defp write_exception_to_stdout(conn, reason, stacktrace) do
+      defp write_exception_to_stdout(conn, error, stacktrace) do
         raw_metadata =
           Logger.metadata()
           |> Keyword.merge(
             crash_reason: {
-              reason,
+              error,
               stacktrace
             }
           )
           |> Map.new()
 
-        message = exception_message(conn, self(), __MODULE__, reason, stacktrace)
+        message = exception_message(conn, self(), __MODULE__, error, stacktrace)
 
-        raw_metadata
-        |> Sanitizer.sanitize_metadata()
-        |> DatadogFormatter.format_captured_exception(raw_metadata, message)
+        {_, _, microseconds} = system_time = :erlang.timestamp()
+        {date, {hh, mm, ss}} = :calendar.now_to_local_time(system_time)
+
+        timestamp = {
+          date,
+          {hh, mm, ss, div(microseconds, 1_000)}
+        }
+
+        sanitized_metadata =
+          raw_metadata
+          |> Sanitizer.sanitize_metadata()
+
+        message
+        |> DatadogFormatter.format_captured_exception(timestamp, sanitized_metadata, raw_metadata)
         |> Jason.encode_to_iodata!()
         |> IO.puts()
       end

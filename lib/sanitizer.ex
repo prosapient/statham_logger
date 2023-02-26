@@ -9,7 +9,7 @@ defmodule StathamLogger.Sanitizer do
   def sanitize_metadata(metadata) when is_map(metadata) do
     config = config()
     filter_keys = Keyword.get(config, :metadata)
-    options = Keyword.get(config, :sanitize_options)
+    options = Keyword.get(config, :sanitize_options, [])
     sanitized_metadata = sanitize_metadata(metadata, filter_keys, options)
 
     sanitized_metadata
@@ -22,12 +22,12 @@ defmodule StathamLogger.Sanitizer do
     |> Loggable.sanitize(options)
   end
 
-  defp take_metadata(metadata, :all) do
-    metadata
+  defp take_metadata(metadata, keys) when is_list(keys) do
+    Map.take(metadata, keys)
   end
 
-  defp take_metadata(metadata, keys) do
-    Map.take(metadata, keys)
+  defp take_metadata(metadata, _) do
+    metadata
   end
 
   defp config do
