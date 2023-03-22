@@ -55,34 +55,36 @@ defmodule StathamLogger.ExceptionCapturePlug do
       end
 
       defp write_exception_to_stdout(conn, error, stacktrace) do
-        raw_metadata =
-          Logger.metadata()
-          |> Keyword.merge(
-            crash_reason: {
-              error,
-              stacktrace
-            }
-          )
-          |> Map.new()
+        if StathamLogger in Application.get_env(:logger, :backends) do
+          raw_metadata =
+            Logger.metadata()
+            |> Keyword.merge(
+              crash_reason: {
+                error,
+                stacktrace
+              }
+            )
+            |> Map.new()
 
-        message = exception_message(conn, self(), __MODULE__, error, stacktrace)
+          message = exception_message(conn, self(), __MODULE__, error, stacktrace)
 
-        {_, _, microseconds} = system_time = :erlang.timestamp()
-        {date, {hh, mm, ss}} = :calendar.now_to_local_time(system_time)
+          {_, _, microseconds} = system_time = :erlang.timestamp()
+          {date, {hh, mm, ss}} = :calendar.now_to_local_time(system_time)
 
-        timestamp = {
-          date,
-          {hh, mm, ss, div(microseconds, 1_000)}
-        }
+          timestamp = {
+            date,
+            {hh, mm, ss, div(microseconds, 1_000)}
+          }
 
-        sanitized_metadata =
-          raw_metadata
-          |> Sanitizer.sanitize_metadata()
+          sanitized_metadata =
+            raw_metadata
+            |> Sanitizer.sanitize_metadata()
 
-        message
-        |> DatadogFormatter.format_captured_exception(timestamp, sanitized_metadata, raw_metadata)
-        |> Jason.encode_to_iodata!()
-        |> IO.puts()
+          message
+          |> DatadogFormatter.format_captured_exception(timestamp, sanitized_metadata, raw_metadata)
+          |> Jason.encode_to_iodata!()
+          |> IO.puts()
+        end
       end
 
       # Code copied from `plug_cowboy` Plug.Cowboy.Translator START
