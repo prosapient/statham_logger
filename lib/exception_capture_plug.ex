@@ -32,30 +32,29 @@ defmodule StathamLogger.ExceptionCapturePlug do
   defmacro __before_compile__(_) do
     quote do
       defoverridable call: 2
+      require Logger
 
       def call(conn, opts) do
-        try do
-          super(conn, opts)
-        rescue
-          e in Plug.Conn.WrapperError ->
-            write_exception_to_stdout(conn, e.reason, e.stack)
-            Plug.Conn.WrapperError.reraise(conn, e.kind, e.reason, e.stack)
+        super(conn, opts)
+      rescue
+        e in Plug.Conn.WrapperError ->
+          write_exception_to_stdout(conn, e.reason, e.stack)
+          Plug.Conn.WrapperError.reraise(conn, e.kind, e.reason, e.stack)
 
-          e ->
-            if Plug.Exception.status(e) >= 500 do
-              write_exception_to_stdout(conn, e, __STACKTRACE__)
-            end
+        e ->
+          if Plug.Exception.status(e) >= 500 do
+            write_exception_to_stdout(conn, e, __STACKTRACE__)
+          end
 
-            :erlang.raise(:error, e, __STACKTRACE__)
-        catch
-          kind, reason ->
-            write_exception_to_stdout(conn, reason, __STACKTRACE__)
-            :erlang.raise(kind, reason, __STACKTRACE__)
-        end
+          :erlang.raise(:error, e, __STACKTRACE__)
+      catch
+        kind, reason ->
+          write_exception_to_stdout(conn, reason, __STACKTRACE__)
+          :erlang.raise(kind, reason, __STACKTRACE__)
       end
 
       defp write_exception_to_stdout(conn, error, stacktrace) do
-        if StathamLogger in Application.get_env(:logger, :backends) do
+        if statham_logger_running?() do
           raw_metadata =
             Logger.metadata()
             |> Keyword.merge(
@@ -85,6 +84,19 @@ defmodule StathamLogger.ExceptionCapturePlug do
           |> Jason.encode_to_iodata!()
           |> IO.puts()
         end
+      end
+
+      defp statham_logger_running? do
+        supervisor =
+          if Process.whereis(Logger.BackendSupervisor) do
+            Logger.BackendSupervisor
+          else
+            Logger.Backends.Supervisor
+          end
+
+        supervisor
+        |> Supervisor.which_children()
+        |> Enum.any?(fn spec -> elem(spec, 0) == StathamLogger end)
       end
 
       # Code copied from `plug_cowboy` Plug.Cowboy.Translator START
