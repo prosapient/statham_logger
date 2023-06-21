@@ -85,25 +85,28 @@ defmodule StathamLogger.DatadogFormatter do
 
   defp format_error(_metadata), do: nil
 
-  defp format_crash_reason_error(%{__exception__: true, __struct__: struct} = exception) do
-    %{
-      kind: inspect(struct),
-      message: Exception.format_banner(:error, exception)
-    }
-  end
-
-  defp format_crash_reason_error({:no_catch, reason}) do
-    %{
-      kind: :throw,
-      message: Exception.format_banner(:throw, reason, [])
-    }
-  end
-
   defp format_crash_reason_error(error) do
-    %{
-      kind: :exit,
-      message: Exception.format_banner(:exit, error)
-    }
+    cond do
+      Kernel.is_exception(error) ->
+        %{
+          kind: Exception.format(:error, error),
+          message: Exception.message(error)
+        }
+
+      match?({:no_catch, _}, error) ->
+        {:no_catch, reason} = error
+
+        %{
+          kind: inspect(reason),
+          message: Exception.format(:throw, reason)
+        }
+
+      true ->
+        %{
+          kind: inspect(error),
+          message: Exception.format(:exit, error)
+        }
+    end
   end
 
   defp format_crash_reason_stacktrace(stacktrace) do

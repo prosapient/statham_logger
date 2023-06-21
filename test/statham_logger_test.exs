@@ -363,8 +363,8 @@ defmodule StathamLoggerTest do
         |> Jason.decode!()
 
       assert %{
-               "kind" => "RuntimeError",
-               "message" => "** (RuntimeError) oops",
+               "kind" => "** (RuntimeError) oops",
+               "message" => "oops",
                "stack" => "\n"
              } = log["error"]
     end
@@ -378,7 +378,7 @@ defmodule StathamLoggerTest do
         |> Jason.decode!()
 
       assert %{
-               "kind" => "exit",
+               "kind" => ":socket_closed_unexpectedly",
                "message" => "** (exit) :socket_closed_unexpectedly",
                "stack" => "\n"
              } = log["error"]
@@ -393,7 +393,7 @@ defmodule StathamLoggerTest do
         |> Jason.decode!()
 
       assert %{
-               "kind" => "throw",
+               "kind" => "\"oops\"",
                "message" => "** (throw) \"oops\"",
                "stack" => "\n"
              } = log["error"]
@@ -420,8 +420,8 @@ defmodule StathamLoggerTest do
           expected_error_stack = Exception.format_stacktrace(__STACKTRACE__)
 
           assert %{
-                   "kind" => "RuntimeError",
-                   "message" => "** (RuntimeError) oops",
+                   "kind" => "** (RuntimeError) oops",
+                   "message" => "oops",
                    "stack" => ^expected_error_stack
                  } = log["error"]
       end

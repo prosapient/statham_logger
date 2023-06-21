@@ -36,7 +36,7 @@ defmodule StathamLogger.ExceptionCapturePlugTest do
                conn(:get, "/error_route")
                |> PhoenixEndpoint.call([])
              end
-           end) =~ "error\":{\"kind\":\"RuntimeError\""
+           end) =~ "error\":{\"kind\":\"** (PhoenixError)\""
   end
 
   test "report exits occurring in Phoenix Endpoint" do
