@@ -35,7 +35,7 @@ defmodule StathamLogger do
       }
       ```
 
-      * `:max_string_size` - maximum length of string values. Defaults to `nil`.\
+    * `:max_string_size` - maximum length of string values. Defaults to `nil`.\
       For example, given `max_string_size: 10` => "Lorem ipsu...".
 
     * `:device` - the device to log error messages to. Defaults to
@@ -122,6 +122,19 @@ defmodule StathamLogger do
   @impl true
   def handle_event({level, _gl, {Logger, msg, ts, md}}, state) do
     %{level: log_level, ref: ref, buffer_size: buffer_size, max_buffer: max_buffer} = state
+
+    log_level =
+      case md[:statham_logger_group] do
+        nil ->
+          log_level
+
+        group ->
+          :logger
+          |> Application.get_env(StathamLogger)
+          |> Keyword.get(:groups, %{})
+          |> Map.get(group, [])
+          |> Keyword.get(:level, log_level)
+      end
 
     cond do
       not meet_level?(level, log_level) ->
