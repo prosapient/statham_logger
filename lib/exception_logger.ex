@@ -70,15 +70,15 @@ defmodule StathamLogger.ExceptionLogger do
     [server_info(conn), request_info(conn)]
   end
 
-  defp server_info(%Plug.Conn{host: host, port: :undefined, scheme: scheme}) do
+  defp server_info(%{host: host, port: :undefined, scheme: scheme}) do
     ["Server: ", host, ?\s, ?(, Atom.to_string(scheme), ?), ?\n]
   end
 
-  defp server_info(%Plug.Conn{host: host, port: port, scheme: scheme}) do
+  defp server_info(%{host: host, port: port, scheme: scheme}) do
     ["Server: ", host, ":", Integer.to_string(port), ?\s, ?(, Atom.to_string(scheme), ?), ?\n]
   end
 
-  defp request_info(%Plug.Conn{method: method, query_string: query_string} = conn) do
+  defp request_info(%{method: method, query_string: query_string} = conn) do
     ["Request: ", method, ?\s, path_to_iodata(conn.request_path, query_string), ?\n]
   end
 
