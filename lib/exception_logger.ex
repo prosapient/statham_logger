@@ -16,7 +16,7 @@ defmodule StathamLogger.ExceptionLogger do
         )
         |> Map.new()
 
-      message = exception_message(self(), __MODULE__, error, stacktrace, conn)
+      message = exception_message(self(), error, stacktrace, conn)
 
       {_, _, microseconds} = system_time = :erlang.timestamp()
       {date, {hh, mm, ss}} = :calendar.now_to_local_time(system_time)
@@ -51,11 +51,9 @@ defmodule StathamLogger.ExceptionLogger do
   end
 
   # Code copied from `plug_cowboy` Plug.Cowboy.Translator START
-  defp exception_message(pid, mod, reason, stacktrace, conn) do
+  defp exception_message(pid, reason, stacktrace, conn) do
     [
       inspect(pid),
-      " running ",
-      inspect(mod),
       " terminated\n",
       conn_info(conn)
       | Exception.format(:exit, {reason, stacktrace}, [])
