@@ -176,11 +176,9 @@ defmodule StathamLogger do
 
   ## Helpers
 
-  defp meet_level?(_lvl, nil), do: true
-
-  defp meet_level?(lvl, min) do
-    Logger.compare_levels(lvl, min) != :lt
-  end
+  defp meet_level?(_level, nil), do: true
+  defp meet_level?(:warn, min), do: Logger.compare_levels(:warning, min) != :lt
+  defp meet_level?(level, min), do: Logger.compare_levels(level, min) != :lt
 
   defp filtered_by_exception_capture_plug?(md, %{exception_capture_plug_used?: exception_capture_plug_used?}) do
     exception_capture_plug_used? &&
