@@ -8,13 +8,10 @@ A backend for the Elixir [Logger](https://hexdocs.pm/logger/Logger.html) that:
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `statham_logger` to your list of dependencies in `mix.exs`:
-
 ```elixir
 def deps do
   [
-    {:statham_logger, "~> 0.1"}
+    {:statham_logger, github: "prosapient/statham_logger"}
   ]
 end
 ```
@@ -47,9 +44,48 @@ config :logger, StathamLogger,
     max_string_size: 100
   ]
 ```
-In this example:
-- `password` and `other_sensitive_key` will have values replaced with `"[FILTERED]"`
-- all string values will be truncated to 100 characters
+Given this configuration, logged medatada will be sanitized:
+- `password` and `other_sensitive_key` values replaced with `"[FILTERED]"`
+- string values truncated to 100 characters
+
+## Dynamic configuration
+```elixir
+iex> require Logger
+iex> Logger.remove_backend(:console)
+iex> Logger.add_backend(StathamLogger)
+iex> Logger.configure_backend(StathamLogger, metadata: :all)
+```
+
+## Usage
+```elixir
+iex> Logger.metadata(metadata_field_1: "metadata_value_1")
+iex> Logger.debug("hello")
+
+# Output
+{"file":"/some_file.ex","function":"say_hello/0","line":67,"logger":{"thread_name":"#PID<0.222.0>","method_name":"HelloModule.say_hello/0"},"message":"hello","metadata_field_1":"metadata_value_1","mfa":["HelloModule","say_hello",0],"module":"HelloModule","pid":"#PID<0.222.0>","syslog":{"hostname":"mb","severity":"debug","timestamp":"2021-10-07T10:20:17.902Z"}}
+```
+
+## Overwrite log level per invocation using StathamLogger groups
+
+1. Configure groups
+```elixir
+config :logger, level: :info
+
+config :logger, StathamLogger,
+  groups: %{
+    detailed_logs: [
+      level: :debug
+    ]
+  }
+```
+
+2. Use group
+```elixir
+Logger.metadata(statham_logger_group: :detailed_logs)
+
+# message is logged, because :detailed_logs level (:debug) overwrites :logger level (:info)
+Logger.debug("hello")
+```
 
 4. Store things like current user (`logger_context.user`) and request details (`logger_context.http`) in Logger metadata under `logger_context` key.
 `StathamLogger` looks in `logger_context` to set standard attributes values (see `StathamLogger.DatadogFormatter` for details).
