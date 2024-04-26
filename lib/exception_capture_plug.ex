@@ -34,7 +34,10 @@ defmodule StathamLogger.ExceptionCapturePlug do
         super(conn, opts)
       rescue
         e in Plug.Conn.WrapperError ->
-          ExceptionLogger.write_exception_to_stdout(e.reason, e.stack, conn)
+          if Plug.Exception.status(e.reason) >= 500 do
+            ExceptionLogger.write_exception_to_stdout(e.reason, e.stack, conn)
+          end
+
           Plug.Conn.WrapperError.reraise(conn, e.kind, e.reason, e.stack)
 
         e ->
@@ -45,7 +48,10 @@ defmodule StathamLogger.ExceptionCapturePlug do
           :erlang.raise(:error, e, __STACKTRACE__)
       catch
         kind, reason ->
-          ExceptionLogger.write_exception_to_stdout(reason, __STACKTRACE__, conn)
+          if Plug.Exception.status(reason) >= 500 do
+            ExceptionLogger.write_exception_to_stdout(reason, __STACKTRACE__, conn)
+          end
+
           :erlang.raise(kind, reason, __STACKTRACE__)
       end
     end
