@@ -8,7 +8,7 @@ defmodule StathamLogger.LoggableTest do
     defstruct [:name, :password, :not_loaded_assoc]
   end
 
-  describe "hides sensitive data" do
+  describe "sanitizes metadata" do
     test """
     - long strings: shortened
     - keyword list values: sanitized
